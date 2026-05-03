@@ -7,6 +7,11 @@ from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+RAPIDAPI_SECRET = os.getenv("RAPIDAPI_PROXY_SECRET", "")
 
 app = FastAPI(
     title="Website Security Headers Scanner API",
@@ -59,6 +64,22 @@ async def root():
 async def health():
     return {"status": "ok"}
 
+@app.middleware("http")
+async def verify_rapidapi_proxy(request: Request, call_next):
+    # Allow health check and docs without verification
+    if request.url.path in ["/health", "/", "/docs", "/openapi.json"]:
+        return await call_next(request)
+    
+    # In production, verify the secret
+    if RAPIDAPI_SECRET:
+        incoming_secret = request.headers.get("X-RapidAPI-Proxy-Secret", "")
+        if incoming_secret != RAPIDAPI_SECRET:
+            return JSONResponse(
+                status_code=403,
+                content={"success": False, "error": "Access denied. Use RapidAPI to access this API."}
+            )
+    
+    return await call_next(request)
 
 # ────────────────────────────────────────────────
 # POST /scan-headers  — Full scan (MVP endpoint)
