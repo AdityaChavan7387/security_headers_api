@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from validator import validate_url
 from scanner import scan_headers
 from pydantic import BaseModel
-from typing import Optional
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -82,12 +81,13 @@ async def scan_headers_endpoint(request: Request, body: ScanRequest):
     )
     return result
 
+
 # ────────────────────────────────────────────────
 # POST /check-hsts
 # ────────────────────────────────────────────────
 @app.post("/check-hsts")
 @limiter.limit("30/minute")
-async def check_hsts(body: ScanRequest):
+async def check_hsts(request: Request, body: ScanRequest):
     is_valid, error_msg = validate_url(body.url)
     if not is_valid:
         return JSONResponse(status_code=400, content={"success": False, "error": error_msg})
@@ -123,7 +123,8 @@ async def check_hsts(body: ScanRequest):
 # POST /check-csp
 # ────────────────────────────────────────────────
 @app.post("/check-csp")
-async def check_csp(body: ScanRequest):
+@limiter.limit("30/minute")
+async def check_csp(request: Request, body: ScanRequest):
     is_valid, error_msg = validate_url(body.url)
     if not is_valid:
         return JSONResponse(status_code=400, content={"success": False, "error": error_msg})
@@ -159,7 +160,8 @@ async def check_csp(body: ScanRequest):
 # POST /check-info-disclosure
 # ────────────────────────────────────────────────
 @app.post("/check-info-disclosure")
-async def check_info_disclosure(body: ScanRequest):
+@limiter.limit("30/minute")
+async def check_info_disclosure(request: Request, body: ScanRequest):
     is_valid, error_msg = validate_url(body.url)
     if not is_valid:
         return JSONResponse(status_code=400, content={"success": False, "error": error_msg})
